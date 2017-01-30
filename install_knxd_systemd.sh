@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+# Exit on error
 ###############################################################################
 # Script to compile and install knxd on a debian jessie (8) based systems
 # 
@@ -17,10 +19,16 @@
 # Version 0.6.1	01.08.2016			Michael Disable Disable bash error handling
 # Version 0.6.2 05.09.2016          Michael USB devices were not recognized: Removed Quote \ before ^ in $INSTALL_PREFIX/bin/knxd-findusb.sh. Thanks to michael pophal for submitting the bug.
 # Version 0.6.3 01.12.2016          Michael Add support for ncn5120 backend
+# Version 0.7.0 30.01.2017          Michael Adjusted to knxd 0.12 => lib pthsem to libev
+#                                           Changed the Compiler options to build dynamic linked binaries, because the standard libev library is used.
+#                                           if parameter -S is set and error "initialization of the EIBnet/IP server failed: No such device " occurs => The Multicast route 224.0.23.12/32 is missing (route add 224.0.23.12/32 eth0)
+#                                           New command line Option -E/--client-addrs 
+#                                           Creates a /run/knxd folder for pid file
+#                                           Script exits immediately on error
+#                                           Some housekeeping :-)
+#                                           
 #
 ###############################################################################
-# Exit on error
-# set -e
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
    echo "     Start script must run as root" 1>&2
@@ -30,17 +38,21 @@ if [ "$(id -u)" != "0" ]; then
 fi
 # define environment
 export BUILD_PATH=$HOME/knxdbuild
-export PTHSEM_PATH=${BUILD_PATH}/pthsem
 export BUSSDK_PATH=${BUILD_PATH}/bussdk
 export INSTALL_PREFIX=/usr/local
 export IS_RASPBERRY_3=0
+export EIB_ADDRESS_KNXD="1.1.128"
+export EIB_START_ADDRESS_CLIENTS_KNXD="1.1.129"
+# Disable error handling
+set +e
 dmesg |grep -i "Raspberry Pi 3" > /dev/null
 if [ $? -eq 0 ]; then
 	echo Raspberry 3 found!
 	export IS_RASPBERRY_3=1
 fi
-# Sources
-
+# Enable error handling
+set -e
+# Requiered packages
 apt-get update 
 apt-get -y upgrade
 apt-get -y install build-essential
@@ -48,26 +60,25 @@ apt-get -y install automake autoconf libtool
 apt-get -y install git 
 apt-get -y install debhelper cdbs 
 apt-get -y install libsystemd-dev libsystemd-daemon-dev libsystemd-daemon0 libsystemd0 pkg-config libusb-dev libusb-1.0-0-dev
+apt-get -y install libev-dev
 
 # For accessing serial devices => User knxd dialout group
 useradd knxd -s /bin/false -U -M -G dialout
-# User pi to group knxd
-usermod -a -G knxd pi
-# And eibd himself to group eibd too
+# On Raspberry add user pi to group knxd
+set +e
+getent passwd pi
+if [ $? -eq 0 ]; then
+	usermod -a -G knxd pi
+fi	
+set -e
+
+# And knxd himself to group knxd too
 usermod -a -G knxd knxd
 
 
-mkdir -p $PTHSEM_PATH
-cd $PTHSEM_PATH
-wget https://www.auto.tuwien.ac.at/~mkoegler/pth/pthsem_2.0.8.tar.gz
-tar -xvzf pthsem_2.0.8.tar.gz
-cd pthsem-2.0.8
-# dpkg-buildpackage -b -uc
-# dpkg -i libpthsem*.deb
-./configure --enable-static=yes --prefix=$INSTALL_PREFIX CFLAGS="-static -static-libgcc -static-libstdc++" LDFLAGS="-static -static-libgcc -static-libstdc++" 
-make && make install
-# Add pthsem library to libpath
+# Add /usr/local library to libpath
 export LD_LIBRARY_PATH=$INSTALL_PREFIX/lib:$LD_LIBRARY_PATH
+if [ ! -d "$BUILD_PATH" ]; then mkdir -p "$BUILD_PATH"; fi
 cd $BUILD_PATH
 if [ -d "$BUILD_PATH/knxd" ]; then
 	echo "knxd repository found"
@@ -80,7 +91,6 @@ fi
 
 bash bootstrap.sh
 
-# make clean
 ./configure \
     --enable-tpuarts \
     --enable-ft12 \
@@ -91,8 +101,9 @@ bash bootstrap.sh
     --enable-eibnetipserver \
     --enable-groupcache \
 	--enable-usb \
-    --enable-static=yes --prefix=$INSTALL_PREFIX --with-pth=$INSTALL_PREFIX CFLAGS="-static -static-libgcc -static-libstdc++" LDFLAGS="-static -static-libgcc -static-libstdc++ -s" CPPFLAGS="-static -static-libgcc -static-libstdc++"
-	
+    --prefix=$INSTALL_PREFIX --with-pth=$INSTALL_PREFIX 
+# --enable-static=yes 	
+# CFLAGS="-static -static-libgcc -static-libstdc++" LDFLAGS="-static -static-libgcc -static-libstdc++ -s" CPPFLAGS="-static -static-libgcc -static-libstdc++"
 # For USB Debugging add -DENABLE_LOGGING=1 and -DENABLE_DEBUG_LOGGING=1 to CFLAGS and CPPFLAGS:
 # 	CFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" \
 #	CPPFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" 
@@ -147,13 +158,13 @@ EOF
 cat > /etc/default/knxd <<EOF
 # Command line parameters for knxd. TPUART Backend
 # Serial device Raspberry
-KNXD_OPTIONS="--eibaddr=1.1.128 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyAMA0"
+KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyAMA0"
 # Serial device PC
-# KNXD_OPTIONS="--eibaddr=1.1.128 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyS0"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyS0"
 # Tunnel Backend
-# KNXD_OPTIONS="--eibaddr=1.1.128 -d -D -T -R -S -i --listen-local=/tmp/knx ipt:192.168.56.1"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx ipt:192.168.56.1"
 # USB Backend
-# KNXD_OPTIONS="--eibaddr=1.1.128 -d -D -T -R -S -i --listen-local=/tmp/knx usb:%DEVICEID%"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx usb:%DEVICEID%"
 EOF
 
 chown knxd:knxd /etc/default/knxd
@@ -201,6 +212,11 @@ sed -e"s/usb:.*\\\$/usb:\$USBID\"/" /etc/default/knxd > /tmp/knxd.env
 cp /tmp/knxd.env /etc/default/knxd
 EOF
 
+cat > /etc/tmpfiles.d/knxd.conf <<EOF
+D    /run/knxd 0744 knxd knxd
+EOF
+
+
 chmod 755 $INSTALL_PREFIX/bin/knxd-findusb.sh
 
 
@@ -215,6 +231,7 @@ sync
 # http://www.fhemwiki.de/w/index.php?title=Raspberry_Pi_3:_GPIO-Port_Module_und_Bluetooth&redirect=no
 # Restore ttyAMA0 (dtoverlay=pi3-disable-bt in /)https://openenergymonitor.org/emon/node/12311
 # dtoverlays https://raspberry.tips/faq/raspberry-pi-device-tree-aenderung-mit-kernel-3-18-x-geraete-wieder-aktivieren/
+set +e
 if [ $IS_RASPBERRY_3 -eq 1 ]; then
 	sed -e's/ console=ttyAMA0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak
 	sed -e's/ console=serial0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
@@ -233,5 +250,7 @@ sed -e's/ kgdboc=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak5
 systemctl disable serial-getty@ttyAMA0.service > /dev/null 2>&1
 systemctl disable serial-getty@ttyS0.service > /dev/null 2>&1
 systemctl disable serial-getty@.service> /dev/null 2>&1
+
+echo "Please reboot your device!"
 
 
