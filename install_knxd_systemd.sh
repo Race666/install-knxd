@@ -26,6 +26,8 @@ set -e
 #                                           Creates a /run/knxd folder for pid file
 #                                           Script exits immediately on error
 #                                           Some housekeeping :-)
+# Version 0.7.1 03.02.2017          Michael /usr/local to ld path
+#                                           Removed duplicate /etc/tmpfiles.d/knxd.conf
 #                                           
 #
 ###############################################################################
@@ -75,7 +77,6 @@ set -e
 # And knxd himself to group knxd too
 usermod -a -G knxd knxd
 
-
 # Add /usr/local library to libpath
 export LD_LIBRARY_PATH=$INSTALL_PREFIX/lib:$LD_LIBRARY_PATH
 if [ ! -d "$BUILD_PATH" ]; then mkdir -p "$BUILD_PATH"; fi
@@ -94,13 +95,13 @@ bash bootstrap.sh
 ./configure \
     --enable-tpuarts \
     --enable-ft12 \
-	--enable-ncn5120 \
+    --enable-ncn5120 \
     --enable-eibnetip \
-	--disable-systemd \
+    --disable-systemd \
     --enable-eibnetiptunnel \
     --enable-eibnetipserver \
     --enable-groupcache \
-	--enable-usb \
+    --enable-usb \
     --prefix=$INSTALL_PREFIX --with-pth=$INSTALL_PREFIX 
 # --enable-static=yes 	
 # CFLAGS="-static -static-libgcc -static-libstdc++" LDFLAGS="-static -static-libgcc -static-libstdc++ -s" CPPFLAGS="-static -static-libgcc -static-libstdc++"
@@ -170,11 +171,7 @@ EOF
 chown knxd:knxd /etc/default/knxd
 chmod 644 /etc/default/knxd
 
-
-cat > /etc/tmpfiles.d/knxd.conf <<EOF
-D    /run/knxd 0744 knxd knxd
-EOF
-
+# Systemd knxd unit
 cat >  /lib/systemd/system/knxd.service <<EOF
 [Unit]
 Description=KNX Daemon
@@ -212,10 +209,17 @@ sed -e"s/usb:.*\\\$/usb:\$USBID\"/" /etc/default/knxd > /tmp/knxd.env
 cp /tmp/knxd.env /etc/default/knxd
 EOF
 
+# Create knxd folder under /run
 cat > /etc/tmpfiles.d/knxd.conf <<EOF
 D    /run/knxd 0744 knxd knxd
 EOF
 
+# Library Path
+cat > /etc/ld.so.conf.d/knxd.conf <<EOF
+/usr/local/lib
+EOF
+
+ldconfig
 
 chmod 755 $INSTALL_PREFIX/bin/knxd-findusb.sh
 
@@ -233,14 +237,14 @@ sync
 # dtoverlays https://raspberry.tips/faq/raspberry-pi-device-tree-aenderung-mit-kernel-3-18-x-geraete-wieder-aktivieren/
 set +e
 if [ $IS_RASPBERRY_3 -eq 1 ]; then
-	sed -e's/ console=ttyAMA0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak
-	sed -e's/ console=serial0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
-	sed -e's/ console=ttyS0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
-	systemctl disable hciuart
+    sed -e's/ console=ttyAMA0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak
+    sed -e's/ console=serial0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
+    sed -e's/ console=ttyS0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
+    systemctl disable hciuart
 else
-	sed -e's/ console=ttyAMA0,115200//g' /boot/cmdline.txt --in-place=.bak
-	sed -e's/ console=serial0,115200//g' /boot/cmdline.txt --in-place=.bak2
-	sed -e's/ console=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak2
+    sed -e's/ console=ttyAMA0,115200//g' /boot/cmdline.txt --in-place=.bak
+    sed -e's/ console=serial0,115200//g' /boot/cmdline.txt --in-place=.bak2
+    sed -e's/ console=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak2
 fi
 sed -e's/ kgdboc=ttyAMA0,115200//g' /boot/cmdline.txt --in-place=.bak1
 sed -e's/ kgdboc=serial0,115200//g' /boot/cmdline.txt --in-place=.bak3
@@ -252,5 +256,3 @@ systemctl disable serial-getty@ttyS0.service > /dev/null 2>&1
 systemctl disable serial-getty@.service> /dev/null 2>&1
 
 echo "Please reboot your device!"
-
-
