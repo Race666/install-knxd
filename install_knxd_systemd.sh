@@ -28,6 +28,7 @@ set -e
 #                                           Some housekeeping :-)
 # Version 0.7.1 03.02.2017          Michael /usr/local to ld path
 #                                           Removed duplicate /etc/tmpfiles.d/knxd.conf
+# Version 0.7.2 08.02.2017          Michael --with-pth removed from configure
 #                                           
 #
 ###############################################################################
@@ -102,9 +103,7 @@ bash bootstrap.sh
     --enable-eibnetipserver \
     --enable-groupcache \
     --enable-usb \
-    --prefix=$INSTALL_PREFIX --with-pth=$INSTALL_PREFIX 
-# --enable-static=yes 	
-# CFLAGS="-static -static-libgcc -static-libstdc++" LDFLAGS="-static -static-libgcc -static-libstdc++ -s" CPPFLAGS="-static -static-libgcc -static-libstdc++"
+    --prefix=$INSTALL_PREFIX
 # For USB Debugging add -DENABLE_LOGGING=1 and -DENABLE_DEBUG_LOGGING=1 to CFLAGS and CPPFLAGS:
 # 	CFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" \
 #	CPPFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" 
