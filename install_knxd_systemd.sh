@@ -29,6 +29,8 @@ set -e
 # Version 0.7.1 03.02.2017          Michael /usr/local to ld path
 #                                           Removed duplicate /etc/tmpfiles.d/knxd.conf
 # Version 0.7.2 08.02.2017          Michael --with-pth removed from configure
+# Version 0.7.3 08.02.2017          Michael added switch -b for Layer2 driver 
+#                                           The USB device ID is no longer necessary   
 #                                           
 #
 ###############################################################################
@@ -158,13 +160,13 @@ EOF
 cat > /etc/default/knxd <<EOF
 # Command line parameters for knxd. TPUART Backend
 # Serial device Raspberry
-KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyAMA0"
+KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyAMA0"
 # Serial device PC
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx tpuarts:/dev/ttyS0"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyS0"
 # Tunnel Backend
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx ipt:192.168.56.1"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b ipt:192.168.56.1"
 # USB Backend
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx usb:%DEVICEID%"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b usb:"
 EOF
 
 chown knxd:knxd /etc/default/knxd
@@ -178,7 +180,6 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/default/knxd
-ExecStartPre=$INSTALL_PREFIX/bin/knxd-findusb.sh
 ExecStart=/usr/local/bin/knxd -p /run/knxd/knxd.pid \$KNXD_OPTIONS
 Type=forking
 PIDFile=/run/knxd/knxd.pid
@@ -187,25 +188,6 @@ Group=knxd
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
-# For autodetecting USB devices
-cat > $INSTALL_PREFIX/bin/knxd-findusb.sh <<EOF
-#!/bin/bash
-grep -e "^\s*KNXD_OPTIONS\=.*usb\:" /etc/default/knxd
-# USB Enabled?
-if [ \$? -ge 1 ]; then
-	exit 0
-fi
-export USBID=""
-export TIMEOUT=30
-while [ "\$USBID" == "" ] && [ \$TIMEOUT -ge 0 ]; do
-  export USBID=\$(/usr/local/bin/findknxusb | grep device: | cut -d' ' -f2)
-  let TIMEOUT-=1
-  sleep 1
-done
-sed -e"s/usb:.*\\\$/usb:\$USBID\"/" /etc/default/knxd > /tmp/knxd.env
-cp /tmp/knxd.env /etc/default/knxd
 EOF
 
 # Create knxd folder under /run
