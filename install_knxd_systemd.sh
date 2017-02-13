@@ -31,6 +31,7 @@ set -e
 # Version 0.7.2 08.02.2017          Michael --with-pth removed from configure
 # Version 0.7.3 08.02.2017          Michael added switch -b for Layer2 driver 
 #                                           The USB device ID is no longer necessary   
+# Version 0.7.4 12.02.2017          Michael chmod on knxd-findusb.sh remove
 #                                           
 #
 ###############################################################################
@@ -201,8 +202,6 @@ cat > /etc/ld.so.conf.d/knxd.conf <<EOF
 EOF
 
 ldconfig
-
-chmod 755 $INSTALL_PREFIX/bin/knxd-findusb.sh
 
 
 # Enable at Startup
