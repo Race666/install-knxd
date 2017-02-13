@@ -32,6 +32,7 @@ set -e
 # Version 0.7.3 08.02.2017          Michael added switch -b for Layer2 driver 
 #                                           The USB device ID is no longer necessary   
 # Version 0.7.4 12.02.2017          Michael chmod on knxd-findusb.sh remove
+# Version 0.7.5 12.02.2017          Michael The knxd Master Branch is currently under heavy development. Always checkout last stable Version v0.12
 #                                           
 #
 ###############################################################################
@@ -91,6 +92,7 @@ if [ -d "$BUILD_PATH/knxd" ]; then
 	git pull
 else
 	git clone https://github.com/knxd/knxd knxd
+	git checkout v0.12
 	cd knxd
 fi
 
