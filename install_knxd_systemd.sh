@@ -33,6 +33,9 @@ set -e
 #                                           The USB device ID is no longer necessary   
 # Version 0.7.4 12.02.2017          Michael chmod on knxd-findusb.sh remove
 # Version 0.7.5 12.02.2017          Michael The knxd Master Branch is currently under heavy development. Always checkout last stable Version v0.12
+# Version 0.7.6 19.02.2017          Michael Check if User knxd already exists.
+#                                           Switching from v0.12 to stable
+#                                           Preparation for libfmt
 #                                           
 #
 ###############################################################################
@@ -62,15 +65,22 @@ set -e
 # Requiered packages
 apt-get update 
 apt-get -y upgrade
-apt-get -y install build-essential
+apt-get -y install build-essential cmake
 apt-get -y install automake autoconf libtool 
 apt-get -y install git 
 apt-get -y install debhelper cdbs 
 apt-get -y install libsystemd-dev libsystemd-daemon-dev libsystemd-daemon0 libsystemd0 pkg-config libusb-dev libusb-1.0-0-dev
-apt-get -y install libev-dev
+apt-get -y install libev-dev 
 
+# New User knxd 
 # For accessing serial devices => User knxd dialout group
-useradd knxd -s /bin/false -U -M -G dialout
+set +e
+getent passwd knxd
+if [ $? -ne 0 ]; then
+	useradd knxd -s /bin/false -U -M -G dialout
+fi	
+set -e
+
 # On Raspberry add user pi to group knxd
 set +e
 getent passwd pi
@@ -86,15 +96,37 @@ usermod -a -G knxd knxd
 export LD_LIBRARY_PATH=$INSTALL_PREFIX/lib:$LD_LIBRARY_PATH
 if [ ! -d "$BUILD_PATH" ]; then mkdir -p "$BUILD_PATH"; fi
 cd $BUILD_PATH
+
+if [ -d "$BUILD_PATH/fmt" ]; then
+	echo "libfmt repository found"
+	cd "$BUILD_PATH/fmt"
+	git pull
+else
+	git clone https://github.com/fmtlib/fmt.git fmt
+	cd fmt
+fi
+# v3.0.1 libfmt has some compile errors => fallback to 3.0.0
+git checkout tags/3.0.0
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX fmt/
+make all
+cp libfmt.a $INSTALL_PREFIX/lib
+
+cd $BUILD_PATH
 if [ -d "$BUILD_PATH/knxd" ]; then
 	echo "knxd repository found"
 	cd "$BUILD_PATH/knxd"
 	git pull
 else
 	git clone https://github.com/knxd/knxd knxd
-	git checkout v0.12
 	cd knxd
 fi
+
+git checkout stable
+#git checkout master
+# All previously installed libraries have to be removed
+set +e
+rm $INSTALL_PREFIX/lib/libeibclient* > /dev/null 2>&1
+set -e
 
 bash bootstrap.sh
 
@@ -108,7 +140,8 @@ bash bootstrap.sh
     --enable-eibnetipserver \
     --enable-groupcache \
     --enable-usb \
-    --prefix=$INSTALL_PREFIX
+    --prefix=$INSTALL_PREFIX \
+	CPPFLAGS="-I$BUILD_PATH/fmt"
 # For USB Debugging add -DENABLE_LOGGING=1 and -DENABLE_DEBUG_LOGGING=1 to CFLAGS and CPPFLAGS:
 # 	CFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" \
 #	CPPFLAGS="-static -static-libgcc -static-libstdc++ -DENABLE_LOGGING=1 -DENABLE_DEBUG_LOGGING=1" 
@@ -221,16 +254,19 @@ set +e
 if [ $IS_RASPBERRY_3 -eq 1 ]; then
     sed -e's/ console=ttyAMA0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak
     sed -e's/ console=serial0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
-    sed -e's/ console=ttyS0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak2
+    sed -e's/ console=ttyS0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak4
+	sed -e's/ console=ttyACM0,115200/ enable_uart=1 dtoverlay=pi3-disable-bt/g' /boot/cmdline.txt --in-place=.bak6
     systemctl disable hciuart
 else
     sed -e's/ console=ttyAMA0,115200//g' /boot/cmdline.txt --in-place=.bak
     sed -e's/ console=serial0,115200//g' /boot/cmdline.txt --in-place=.bak2
-    sed -e's/ console=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak2
+    sed -e's/ console=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak4
+	sed -e's/ console=ttyACM0,115200//g' /boot/cmdline.txt --in-place=.bak6
 fi
 sed -e's/ kgdboc=ttyAMA0,115200//g' /boot/cmdline.txt --in-place=.bak1
 sed -e's/ kgdboc=serial0,115200//g' /boot/cmdline.txt --in-place=.bak3
 sed -e's/ kgdboc=ttyS0,115200//g' /boot/cmdline.txt --in-place=.bak5
+sed -e's/ kgdboc=ttyACM0,115200//g' /boot/cmdline.txt --in-place=.bak7
 
 # Disable serial console
 systemctl disable serial-getty@ttyAMA0.service > /dev/null 2>&1
