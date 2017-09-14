@@ -36,7 +36,7 @@ set -e
 # Version 0.7.6 19.02.2017          Michael Check if User knxd already exists.
 #                                           Switching from v0.12 to stable
 #                                           Preparation for libfmt
-#                                           
+# Version 0.7.7 03.07.2017                  Removed libsystemd-daemon0 from installed packages
 #
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
@@ -69,7 +69,7 @@ apt-get -y install build-essential cmake
 apt-get -y install automake autoconf libtool 
 apt-get -y install git 
 apt-get -y install debhelper cdbs 
-apt-get -y install libsystemd-dev libsystemd-daemon-dev libsystemd-daemon0 libsystemd0 pkg-config libusb-dev libusb-1.0-0-dev
+apt-get -y install libsystemd-dev libsystemd0 pkg-config libusb-dev libusb-1.0-0-dev
 apt-get -y install libev-dev 
 
 # New User knxd 
