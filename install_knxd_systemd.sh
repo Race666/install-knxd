@@ -37,6 +37,10 @@ set -e
 #                                           Switching from v0.12 to stable
 #                                           Preparation for libfmt
 # Version 0.7.7 03.07.2017                  Removed libsystemd-daemon0 from installed packages
+# Version 0.7.8 18.09.2017          Michael Configure options. remove: --enable-ncn5120  changed: --enable-tpuarts => --enable-tpuart new: --enable-busmonitor --enable-eibnetserver 
+#                                           Number of client address increased 1 => 8
+#                                           Still installing libfmt from github due to compatibility with Debian 8
+#                                           Due to changes in 0.14 changed systemd type from forked to simple
 #
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
@@ -53,6 +57,7 @@ export INSTALL_PREFIX=/usr/local
 export IS_RASPBERRY_3=0
 export EIB_ADDRESS_KNXD="1.1.128"
 export EIB_START_ADDRESS_CLIENTS_KNXD="1.1.129"
+export EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES=8
 # Disable error handling
 set +e
 dmesg |grep -i "Raspberry Pi 3" > /dev/null
@@ -100,7 +105,7 @@ cd $BUILD_PATH
 if [ -d "$BUILD_PATH/fmt" ]; then
 	echo "libfmt repository found"
 	cd "$BUILD_PATH/fmt"
-	git pull
+	# git pull
 else
 	git clone https://github.com/fmtlib/fmt.git fmt
 	cd fmt
@@ -131,11 +136,13 @@ set -e
 bash bootstrap.sh
 
 ./configure \
-    --enable-tpuarts \
+    --enable-tpuart \
     --enable-ft12 \
-    --enable-ncn5120 \
+	--enable-dummy \
     --enable-eibnetip \
-    --disable-systemd \
+    --enable-eibnetserver \
+	--disable-systemd \
+	--enable-busmonitor \
     --enable-eibnetiptunnel \
     --enable-eibnetipserver \
     --enable-groupcache \
@@ -196,13 +203,13 @@ EOF
 cat > /etc/default/knxd <<EOF
 # Command line parameters for knxd. TPUART Backend
 # Serial device Raspberry
-KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyAMA0"
+KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:$EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyAMA0"
 # Serial device PC
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyS0"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:$EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES -d -D -T -R -S -i --listen-local=/tmp/knx -b tpuarts:/dev/ttyS0"
 # Tunnel Backend
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b ipt:192.168.56.1"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:$EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES -d -D -T -R -S -i --listen-local=/tmp/knx -b ipt:192.168.56.1"
 # USB Backend
-# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:1 -d -D -T -R -S -i --listen-local=/tmp/knx -b usb:"
+# KNXD_OPTIONS="--eibaddr=$EIB_ADDRESS_KNXD --client-addrs=$EIB_START_ADDRESS_CLIENTS_KNXD:$EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES -d -D -T -R -S -i --listen-local=/tmp/knx -b usb:"
 EOF
 
 chown knxd:knxd /etc/default/knxd
@@ -217,7 +224,7 @@ After=network.target
 [Service]
 EnvironmentFile=/etc/default/knxd
 ExecStart=/usr/local/bin/knxd -p /run/knxd/knxd.pid \$KNXD_OPTIONS
-Type=forking
+Type=simple
 PIDFile=/run/knxd/knxd.pid
 User=knxd
 Group=knxd
