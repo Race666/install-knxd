@@ -46,6 +46,7 @@ set -e
 #                                           /etc/default/knxd Backend tpuarts renamed to tpuart
 # Version 0.7.10 25.09.2017         Michael Backendname of tpuart is still tpuarts. Rollback..
 # Version 0.7.11 11.10.2017         Michael Temp Patch for issues with USB devices see https://github.com/knxd/knxd/issues/290
+# Version 0.7.12 11.10.2017         Michael Patchmessage text modified
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -78,8 +79,9 @@ echo "send-retries from   3 to    5"
 echo "in src/libserver/emi_common.cpp" 
 echo "a suffix -emipatch to the knxd version is appended"
 echo
+echo "PLEASE submit feedback or your experience about the stability of the patch as a comment to the post."
 echo
-read -p "Wolud you like to apply patch ? [y|n]" APPLY_EMI_TIMEOUT_PATCH
+read -p "Would you like to apply patch ? [y|n]" APPLY_EMI_TIMEOUT_PATCH
 
 # Disable error handling
 set +e
