@@ -41,7 +41,11 @@ set -e
 #                                           Number of client address increased 1 => 8
 #                                           Still installing libfmt from github due to compatibility with Debian 8
 #                                           Due to changes in 0.14 changed systemd type from forked to simple
-#
+# Version 0.7.9 21.09.2017          Michael systemd knxd.service file changed. Insert Parameters (commented, therefore disabled) for systemd-networkd-wait-online.service
+#                                           Also added dependency WantedBy=...network-online.target
+#                                           /etc/default/knxd Backend tpuarts renamed to tpuart
+# Version 0.7.10 25.09.2017         Michael Backendname of tpuart is still tpuarts. Rollback..
+# Version 0.7.11 11.10.2017         Michael Temp Patch for issues with USB devices see https://github.com/knxd/knxd/issues/290
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -58,6 +62,25 @@ export IS_RASPBERRY_3=0
 export EIB_ADDRESS_KNXD="1.1.128"
 export EIB_START_ADDRESS_CLIENTS_KNXD="1.1.129"
 export EIB_NUMBER_OF_CLIENT_KNX_CLIENT_ADDRESSES=8
+
+
+echo 
+echo
+echo "Dear User"
+echo "Some issues reported regarding KNX USB Interfaces"
+echo "with the latest stable version 0.14.18:ef3c496"
+echo "see https://github.com/knxd/knxd/issues/290"
+echo "As a workaround ersingencturk has tried to increase the timeout"
+echo "and this still works reliable."
+echo "The patch sets"
+echo "send-timeout from 300 to 6000"
+echo "send-retries from   3 to    5"
+echo "in src/libserver/emi_common.cpp" 
+echo "a suffix -emipatch to the knxd version is appended"
+echo
+echo
+read -p "Wolud you like to apply patch ? [y|n]" APPLY_EMI_TIMEOUT_PATCH
+
 # Disable error handling
 set +e
 dmesg |grep -i "Raspberry Pi 3" > /dev/null
@@ -127,6 +150,38 @@ else
 fi
 
 git checkout stable
+
+if [ "$APPLY_EMI_TIMEOUT_PATCH" == "y" ]; then
+cat > $BUILD_PATH/patch.emi_timeout <<EOF
+--- src/libserver/emi_common.cpp        2017-10-10 21:39:21.760000000 +0200
++++ src/libserver/emi_common.cpp        2017-10-10 21:40:13.448000000 +0200
+@@ -60,8 +60,11 @@
+     return false;
+   if(!LowLevelFilter::setup())
+     return false;
+-  send_timeout = cfg->value("send-timeout",300) / 1000.;
+-  max_retries = cfg->value("send-retries",3);
++  // send_timeout = cfg->value("send-timeout",300) / 1000.;
++  // max_retries = cfg->value("send-retries",3);
++  send_timeout = cfg->value("send-timeout",6000) / 1000.;
++  max_retries = cfg->value("send-retries",5);
++
+   monitor = cfg->value("monitor",false);
+
+   return true;
+--- tools/version.sh    2017-10-11 09:38:35.448000000 +0200
++++ tools/version.sh    2017-10-11 09:51:55.516000000 +0200
+@@ -5,4 +5,5 @@
+ lgit=\$(git rev-parse --short \$(git rev-list -1 HEAD debian/changelog) )
+ if test "\$git" != "\$lgit" ; then
+        echo -n ":\$git"
++       echo -n "-emipatch"
+ fi
+EOF
+patch -p0 --ignore-whitespace -i $BUILD_PATH/patch.emi_timeout
+fi
+
+
 #git checkout master
 # All previously installed libraries have to be removed
 set +e
@@ -197,6 +252,8 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="135e", ATTR{idProduct}=="0024", ACTION=="add"
 SUBSYSTEM=="usb", ATTR{idVendor}=="04cc", ATTR{idProduct}=="0301", ACTION=="add", GROUP="knxd", MODE="0664"
 # MDT KNX_USB_Interface
 SUBSYSTEM=="usb", ATTR{idVendor}=="16d0", ATTR{idProduct}=="0491", ACTION=="add", GROUP="knxd", MODE="0664"
+# Siemens 148/12 KNX Interface
+SUBSYSTEM=="usb", ATTR{idVendor}=="0908", ATTR{idProduct}=="02dd", ACTION=="add", GROUP="knxd", MODE="0664"
 EOF
 
 
@@ -223,14 +280,19 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/default/knxd
+# Wait for all interfaces, systemd-networkd-wait-online.service must be enabled
+#ExecStartPre=/lib/systemd/systemd-networkd-wait-online --timeout=60
+# Wait for a specific interface
+#ExecStartPre=/lib/systemd/systemd-networkd-wait-online --timeout=60 --interface=eth0
 ExecStart=/usr/local/bin/knxd -p /run/knxd/knxd.pid \$KNXD_OPTIONS
 Type=simple
 PIDFile=/run/knxd/knxd.pid
 User=knxd
 Group=knxd
+#TimeoutStartSec=60
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target network-online.target
 EOF
 
 # Create knxd folder under /run
