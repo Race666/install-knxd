@@ -47,6 +47,7 @@ set -e
 # Version 0.7.10 25.09.2017         Michael Backendname of tpuart is still tpuarts. Rollback..
 # Version 0.7.11 11.10.2017         Michael Temp Patch for issues with USB devices see https://github.com/knxd/knxd/issues/290
 # Version 0.7.12 11.10.2017         Michael Patchmessage text modified
+# Version 0.7.13 29.11.2017         Michael low_latency for BusWare USB TPUART, see https://github.com/knxd/knxd/issues/301
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -101,6 +102,7 @@ apt-get -y install git
 apt-get -y install debhelper cdbs 
 apt-get -y install libsystemd-dev libsystemd0 pkg-config libusb-dev libusb-1.0-0-dev
 apt-get -y install libev-dev 
+apt-get -y install setserial
 
 # New User knxd 
 # For accessing serial devices => User knxd dialout group
@@ -256,6 +258,12 @@ SUBSYSTEM=="usb", ATTR{idVendor}=="04cc", ATTR{idProduct}=="0301", ACTION=="add"
 SUBSYSTEM=="usb", ATTR{idVendor}=="16d0", ATTR{idProduct}=="0491", ACTION=="add", GROUP="knxd", MODE="0664"
 # Siemens 148/12 KNX Interface
 SUBSYSTEM=="usb", ATTR{idVendor}=="0908", ATTR{idProduct}=="02dd", ACTION=="add", GROUP="knxd", MODE="0664"
+# Low Latency for  Busware TUL TPUART USB
+ACTION=="add", SUBSYSTEM=="tty", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="204b", KERNELS=="1-4", SYMLINK+="ttyTPUART", RUN+="/bin/setserial /dev/%k low_latency", GROUP="dialout", MODE="0664"
+# Test rules example:
+# udevadm info --query=all --attribute-walk --name=/dev/ttyS0
+# udevadm test /dev/ttyS0 
+# ACTION=="add",SUBSYSTEM=="tty", ATTR{port}=="0x3F8",SYMLINK+="ttyTPUART1",RUN+="/bin/setserial /dev/%k low_latency", GROUP="dialout", MODE="0664"
 EOF
 
 
