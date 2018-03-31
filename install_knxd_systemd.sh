@@ -48,6 +48,7 @@ set -e
 # Version 0.7.11 11.10.2017         Michael Temp Patch for issues with USB devices see https://github.com/knxd/knxd/issues/290
 # Version 0.7.12 11.10.2017         Michael Patchmessage text modified
 # Version 0.7.13 29.11.2017         Michael low_latency for BusWare USB TPUART, see https://github.com/knxd/knxd/issues/301
+# Version 0.7.14 23.01.2018         Michael Due to commit 356be34 changed the knxd.service Type to Type=forking
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -295,7 +296,7 @@ EnvironmentFile=/etc/default/knxd
 # Wait for a specific interface
 #ExecStartPre=/lib/systemd/systemd-networkd-wait-online --timeout=60 --interface=eth0
 ExecStart=/usr/local/bin/knxd -p /run/knxd/knxd.pid \$KNXD_OPTIONS
-Type=simple
+Type=forking
 PIDFile=/run/knxd/knxd.pid
 User=knxd
 Group=knxd
