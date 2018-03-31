@@ -49,6 +49,7 @@ set -e
 # Version 0.7.12 11.10.2017         Michael Patchmessage text modified
 # Version 0.7.13 29.11.2017         Michael low_latency for BusWare USB TPUART, see https://github.com/knxd/knxd/issues/301
 # Version 0.7.14 23.01.2018         Michael Due to commit 356be34 changed the knxd.service Type to Type=forking
+# Version 0.7.15 30.03.2018         Michael Change knxd to master branch
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -154,7 +155,7 @@ else
 	cd knxd
 fi
 
-git checkout stable
+git checkout master
 
 if [ "$APPLY_EMI_TIMEOUT_PATCH" == "y" ]; then
 cat > $BUILD_PATH/patch.emi_timeout <<EOF
