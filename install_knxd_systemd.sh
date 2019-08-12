@@ -50,6 +50,7 @@ set -e
 # Version 0.7.13 29.11.2017         Michael low_latency for BusWare USB TPUART, see https://github.com/knxd/knxd/issues/301
 # Version 0.7.14 23.01.2018         Michael Due to commit 356be34 changed the knxd.service Type to Type=forking
 # Version 0.7.15 30.03.2018         Michael Change knxd to master branch
+# Version 0.7.16 12.08.2018         Michael Builting of libfmt removed. knxd gets and compiles libfmt
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -129,21 +130,6 @@ usermod -a -G knxd knxd
 # Add /usr/local library to libpath
 export LD_LIBRARY_PATH=$INSTALL_PREFIX/lib:$LD_LIBRARY_PATH
 if [ ! -d "$BUILD_PATH" ]; then mkdir -p "$BUILD_PATH"; fi
-cd $BUILD_PATH
-
-if [ -d "$BUILD_PATH/fmt" ]; then
-	echo "libfmt repository found"
-	cd "$BUILD_PATH/fmt"
-	# git pull
-else
-	git clone https://github.com/fmtlib/fmt.git fmt
-	cd fmt
-fi
-# v3.0.1 libfmt has some compile errors => fallback to 3.0.0
-git checkout tags/3.0.0
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX fmt/
-make all
-cp libfmt.a $INSTALL_PREFIX/lib
 
 cd $BUILD_PATH
 if [ -d "$BUILD_PATH/knxd" ]; then
