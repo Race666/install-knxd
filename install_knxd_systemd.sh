@@ -51,6 +51,7 @@ set -e
 # Version 0.7.14 23.01.2018         Michael Due to commit 356be34 changed the knxd.service Type to Type=forking
 # Version 0.7.15 30.03.2018         Michael Change knxd to master branch
 # Version 0.7.16 12.08.2019         Michael Builting of libfmt removed. knxd gets and compiles libfmt
+# Version 0.7.17 26.05.2020         Michael Path of systemd unit file changed
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -271,7 +272,7 @@ chown knxd:knxd /etc/default/knxd
 chmod 644 /etc/default/knxd
 
 # Systemd knxd unit
-cat >  /lib/systemd/system/knxd.service <<EOF
+cat >  /etc/systemd/system/knxd.service <<EOF
 [Unit]
 Description=KNX Daemon
 After=network.target
