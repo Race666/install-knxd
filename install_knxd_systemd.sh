@@ -53,6 +53,7 @@ set -e
 # Version 0.7.16 12.08.2019         Michael Builting of libfmt removed. knxd gets and compiles libfmt
 # Version 0.7.17 26.05.2020         Michael Path of systemd unit file changed
 # Version 0.7.18 26.05.2020         Michael Default Timrout in knxd is changed from 500ms -> 2000ms. Patch removed
+# Version 0.7.19 26.05.2020         Michael Checkout branch master -> main
 ###############################################################################
 if [ "$(id -u)" != "0" ]; then
    echo "     Attention!!!"
@@ -124,7 +125,7 @@ else
 	cd knxd
 fi
 
-git checkout master
+git checkout main
 
 #git checkout master
 # All previously installed libraries have to be removed
